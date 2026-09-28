@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  n8n-tailscale:
+    # Optional image version with default fallback
+    image: tailscale/tailscale:${TAILSCALE_VERSION:-latest}
+    hostname: ${TAILSCALE_HOSTNAME:-n8n-automation-node}
+    environment:
+      # Mandatory credential check (will stop build if missing from .env)
+      - TS_AUTHKEY=${TAILSCALE_AUTH_KEY:?Tailscale Auth Key is required in .env}
+      - TS_STATE_DIR=/var/lib/tailscale
+    volumes:
+      - tailscale-data:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - net_admin
+      - sys_module
+    restart: unless-stopped
+    configs:
+      - source: tailscale_init_script
+        target: /usr/local/bin/init-routing.sh
+        mode: 0755
+    post_start:
+      - command: /usr/local/bin/init-routing.sh
+
+  n8n:
+    # Optional image version with default fallback
+    image: docker.n8n.io/n8nio/n8n:${N8N_VERSION:-latest}
+    network_mode: "service:n8n-tailscale"
+    environment:
+      # Mandatory domain check
+      - WEBHOOK_URL=https://${TAILSCALE_DOMAIN:?Tailscale domain is required in .env}
+      # Optional webhook prefixes with default fallbacks
+      - N8N_ENDPOINT_WEBHOOK=${N8N_ENDPOINT_WEBHOOK:-prod-secret-path}
+      - N8N_ENDPOINT_WEBHOOK_TEST=${N8N_ENDPOINT_WEBHOOK_TEST:-test-secret-path}
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      - n8n-tailscale
+    restart: unless-stopped
+
+volumes:
+  tailscale-data:
+  n8n_data:
+
+configs:
+  tailscale_init_script:
+    content: |
+      #!/bin/sh
+      sleep 5
+
+      echo "Configuring internal UI route (Private Port 80)..."
+      tailscale serve --bg --http=80 localhost:5678
+
+      echo "Configuring production webhook (Public HTTPS 443)..."
+      tailscale funnel --bg --https=443 --set-path=/${N8N_ENDPOINT_WEBHOOK:-prod-secret-path}/ localhost:5678
+
+      echo "Configuring test webhook (Public HTTPS 443)..."
+      tailscale funnel --bg --https=443 --set-path=/${N8N_ENDPOINT_WEBHOOK_TEST:-test-secret-path}/ localhost:5678
+
+      echo "Tailscale routing configuration complete."
