@@ -2,7 +2,6 @@ version: '3.8'
 
 services:
   n8n-tailscale:
-    # Optional image version with default fallback
     image: tailscale/tailscale:${TAILSCALE_VERSION:-latest}
     hostname: ${TAILSCALE_HOSTNAME:-n8n-automation-node}
     environment:
@@ -24,12 +23,11 @@ services:
       - command: /usr/local/bin/init-routing.sh
 
   n8n:
-    # Optional image version with default fallback
     image: docker.n8n.io/n8nio/n8n:${N8N_VERSION:-latest}
     network_mode: "service:n8n-tailscale"
     environment:
-      # Mandatory domain check
-      - WEBHOOK_URL=https://${TAILSCALE_DOMAIN:?Tailscale domain is required in .env}
+      # Composes full URL from TAILSCALE_HOSTNAME and TAILSCALE_DNS_NAME
+      - WEBHOOK_URL=https://${TAILSCALE_HOSTNAME:-n8n-automation-node}.${TAILSCALE_DNS_NAME:?Tailscale DNS name is required in .env}
       # Required to access UI locally via Tailscale HTTP without triggering the secure cookie error
       - N8N_SECURE_COOKIE=false
       # Optional webhook prefixes with default fallbacks
@@ -49,7 +47,13 @@ configs:
   tailscale_init_script:
     content: |
       #!/bin/sh
-      sleep 5
+      set -e
+
+      echo "Waiting for Tailscale to connect..."
+      tailscale wait
+
+      echo "Clearing old routing rules..."
+      tailscale serve --bg reset
 
       echo "Configuring internal UI route (Private Port 80)..."
       tailscale serve --bg --http=80 localhost:5678
