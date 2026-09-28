@@ -30,6 +30,8 @@ services:
     environment:
       # Mandatory domain check
       - WEBHOOK_URL=https://${TAILSCALE_DOMAIN:?Tailscale domain is required in .env}
+      # Required to access UI locally via Tailscale HTTP without triggering the secure cookie error
+      - N8N_SECURE_COOKIE=false
       # Optional webhook prefixes with default fallbacks
       - N8N_ENDPOINT_WEBHOOK=${N8N_ENDPOINT_WEBHOOK:-prod-secret-path}
       - N8N_ENDPOINT_WEBHOOK_TEST=${N8N_ENDPOINT_WEBHOOK_TEST:-test-secret-path}
