@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  n8n-tailscale:
+  tailscale:
     image: tailscale/tailscale:${TAILSCALE_VERSION:-latest}
     hostname: ${TAILSCALE_HOSTNAME:-n8n-automation-node}
     environment:
@@ -24,7 +24,7 @@ services:
 
   n8n:
     image: docker.n8n.io/n8nio/n8n:${N8N_VERSION:-latest}
-    network_mode: "service:n8n-tailscale"
+    network_mode: "service:tailscale"
     environment:
       # Composes full URL from TAILSCALE_HOSTNAME and TAILSCALE_DNS_NAME
       - WEBHOOK_URL=https://${TAILSCALE_HOSTNAME:-n8n-automation-node}.${TAILSCALE_DNS_NAME:?Tailscale DNS name is required in .env}
@@ -36,7 +36,7 @@ services:
     volumes:
       - n8n_data:/home/node/.n8n
     depends_on:
-      - n8n-tailscale
+      - tailscale
     restart: unless-stopped
 
 volumes:
