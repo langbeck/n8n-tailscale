@@ -91,12 +91,8 @@ Once the stack is up and Tailscale finishes initialization (approx. 5 seconds):
 ### Check Tailscale Routing Rules
 To verify that Tailscale correctly configured the background Funnel and Serve proxies:
 
-    docker exec -it $(docker compose ps -q n8n-tailscale) tailscale serve status
+    docker compose exec tailscale tailscale serve status
 
 ### Inspect Container Logs
 
-    docker compose logs -f n8n-tailscale
-
-## 📄 License
-
-Distributed under the MIT License. See `LICENSE` for details.
+    docker compose logs -f tailscale
