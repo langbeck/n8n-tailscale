@@ -33,13 +33,13 @@ This architecture allows you to receive external webhooks (e.g., WhatsApp, Meta,
 
 ## 🚀 Quick Start
 
-### 1. Prerequisites
+### Method 1: The One-Line Remote Installer (Recommended)
 
-* **Docker & Docker Compose** (v2.30.0+ recommended for `post_start` hook support).
-* An active **Tailscale** account.
-* A generated **Tailscale Auth Key** from your Tailscale Admin Console (reusable or ephemeral key recommended).
+'Run the automated interactive installer directly from your terminal. It will prompt for your credentials, deploy directly from GitHub into Docker, and wait for network routes to finalize:
 
-### 2. Installation
+    curl -sSL https://raw.githubusercontent.com/langbeck/n8n-tailscale/main/install.sh | sh
+
+### Method 2: Local Clone
 
 1. Clone the repository:
 
