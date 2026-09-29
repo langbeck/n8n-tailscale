@@ -1,11 +1,17 @@
+x-shared-env: &shared-env
+  N8N_ENDPOINT_WEBHOOK:       "${N8N_ENDPOINT_WEBHOOK:-prod-secret-path}"
+  N8N_ENDPOINT_WEBHOOK_TEST:  "${N8N_ENDPOINT_WEBHOOK_TEST:-test-secret-path}"
+
 services:
   tailscale:
     image: tailscale/tailscale:${TAILSCALE_VERSION:-latest}
     hostname: ${TAILSCALE_HOSTNAME:-n8n-automation-node}
     environment:
       # Mandatory credential check (will stop build if missing from .env)
-      - TS_AUTHKEY=${TAILSCALE_AUTH_KEY:?Tailscale Auth Key is required in .env}
-      - TS_STATE_DIR=/var/lib/tailscale
+      TS_AUTHKEY:   ${TAILSCALE_AUTH_KEY:?Tailscale Auth Key is required in .env}
+      TS_STATE_DIR: /var/lib/tailscale
+      # Shared env to be used by the init script.
+      <<: *shared-env
     volumes:
       - tailscale-data:/var/lib/tailscale
       - /dev/net/tun:/dev/net/tun
@@ -25,14 +31,13 @@ services:
     network_mode: "service:tailscale"
     environment:
       # Composes full URL from TAILSCALE_HOSTNAME and TAILSCALE_DNS_NAME
-      - WEBHOOK_URL=https://${TAILSCALE_HOSTNAME:-n8n-automation-node}.${TAILSCALE_DNS_NAME:?Tailscale DNS name is required in .env}
+      N8N_WEBHOOK_URL: https://${TAILSCALE_HOSTNAME:-n8n-automation-node}.${TAILSCALE_DNS_NAME:?Tailscale DNS name is required in .env}
       # Required to access UI locally via Tailscale HTTP without triggering the secure cookie error
-      - N8N_SECURE_COOKIE=false
-      # Optional webhook prefixes with default fallbacks
-      - N8N_ENDPOINT_WEBHOOK=${N8N_ENDPOINT_WEBHOOK:-prod-secret-path}
-      - N8N_ENDPOINT_WEBHOOK_TEST=${N8N_ENDPOINT_WEBHOOK_TEST:-test-secret-path}
+      N8N_SECURE_COOKIE: false
       # Need access to builtin crypto library to verify Discord's ED25519 signatures.
-      - NODE_FUNCTION_ALLOW_BUILTIN=crypto
+      NODE_FUNCTION_ALLOW_BUILTIN: crypto
+      # Shared variables that include webhook endpoints.
+      <<: *shared-env
     volumes:
       - n8n_data:/home/node/.n8n
     depends_on:
@@ -56,13 +61,13 @@ configs:
       tailscale serve --bg reset
 
       echo "Configuring internal UI route (Private Port 80)..."
-      tailscale serve --bg --http=80 localhost:5678
+      tailscale serve --bg --http=80 127.0.0.1:5678
 
       echo "Configuring production webhook (Public HTTPS 443)..."
       # Appending the path to the target forces Tailscale to re-attach the stripped prefix
-      tailscale funnel --bg --https=443 --set-path=/${N8N_ENDPOINT_WEBHOOK}/ http://127.0.0.1:5678/${N8N_ENDPOINT_WEBHOOK}/
+      tailscale funnel --bg --https=443 --set-path=/$${N8N_ENDPOINT_WEBHOOK}/ http://127.0.0.1:5678/$${N8N_ENDPOINT_WEBHOOK}/
 
       echo "Configuring test webhook (Public HTTPS 443)..."
-      tailscale funnel --bg --https=443 --set-path=/${N8N_ENDPOINT_WEBHOOK_TEST}/ http://127.0.0.1:5678/${N8N_ENDPOINT_WEBHOOK_TEST}/
+      tailscale funnel --bg --https=443 --set-path=/$${N8N_ENDPOINT_WEBHOOK_TEST}/ http://127.0.0.1:5678/$${N8N_ENDPOINT_WEBHOOK_TEST}/
 
       echo "Tailscale routing configuration complete."
